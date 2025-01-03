@@ -1,0 +1,140 @@
+<html>
+  <head>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">
+      google.charts.load("current", {packages:["calendar"]});
+      google.charts.setOnLoadCallback(drawChart);
+      let dataTable;
+      let chart;
+      let currentMode = 'single'; // Default mode
+
+      function getWorkWeekDates(startDate) {
+        let dates = [];
+        let currentDate = new Date(startDate);
+        
+        // Get to Monday of current week
+        let day = currentDate.getDay();
+        if (day === 0) {  // If Sunday, go to next day
+          currentDate.setDate(currentDate.getDate() + 1);
+        } else if (day > 1) {  // If after Monday, go to current week's Monday
+          currentDate.setDate(currentDate.getDate() - (day - 1));
+        }
+        
+        // Get M-F dates
+        for (let i = 0; i < 5; i++) {
+          dates.push(new Date(currentDate));
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+        return dates;
+      }
+
+      function dateExists(date) {
+        for (let i = 0; i < dataTable.getNumberOfRows(); i++) {
+          let rowDate = dataTable.getValue(i, 0);
+          if (new Date(rowDate).getTime() === new Date(date).getTime()) {
+            return i;
+          }
+        }
+        return -1;
+      }
+
+      function toggleSingleDay(date) {
+        // Adjust the date by adding one day
+        let adjustedDate = new Date(date);
+        adjustedDate.setDate(adjustedDate.getDate() + 1);
+        
+        let rowIndex = dateExists(adjustedDate);
+        if (rowIndex !== -1) {
+          // If value is already -1, remove it
+          if (dataTable.getValue(rowIndex, 1) === -1) {
+            dataTable.removeRow(rowIndex);
+          } else {
+            // Otherwise, change to -1 (orange)
+            dataTable.setValue(rowIndex, 1, -1);
+          }
+        } else {
+          // Add new row with -1 (orange)
+          dataTable.addRow([adjustedDate, -1]);
+        }
+        
+        // Redraw the chart
+        var options = {
+          title: "Onsite in SF",
+          height: 350,
+        };
+        chart.draw(dataTable, options);
+      }
+
+      function toggleWorkWeek(date) {
+        let weekDates = getWorkWeekDates(date);
+        let exists = weekDates.some(date => dateExists(date) !== -1);
+        
+        if (exists) {
+          // Remove the week
+          for (let date of weekDates) {
+            let rowIndex;
+            while ((rowIndex = dateExists(date)) !== -1) {
+              dataTable.removeRow(rowIndex);
+            }
+          }
+        } else {
+          // Add the week
+          let newRows = weekDates.map(date => [new Date(date), 1]);
+          dataTable.addRows(newRows);
+        }
+        
+        // Redraw the chart
+        var options = {
+          title: "Onsite in SF",
+          height: 350,
+        };
+        chart.draw(dataTable, options);
+      }
+
+      // Function to change modes
+      function setMode(mode) {
+        currentMode = mode;
+      }
+
+      function drawChart() {
+        dataTable = new google.visualization.DataTable();
+        dataTable.addColumn({ type: 'date', id: 'Date' });
+        dataTable.addColumn({ type: 'number', id: 'SF' });
+        
+        // Initial data
+        dataTable.addRows([
+          [ new Date(2025, 1, 1), 0 ],
+          [ new Date(2025, 6, 12), 0 ],
+        ]);
+        chart = new google.visualization.Calendar(document.getElementById('calendar_basic'));
+        
+        google.visualization.events.addListener(chart, 'select', function() {
+          let selection = chart.getSelection();
+          if (selection && selection[0]) {
+            let selectedDate = selection[0].date;
+            if (selectedDate) {
+              if (currentMode === 'single') {
+                toggleSingleDay(selectedDate);
+              } else {
+                toggleWorkWeek(selectedDate);
+              }
+            }
+          }
+        });
+
+        var options = {
+          title: "Onsite in SF",
+          height: 350,
+        };
+        chart.draw(dataTable, options);
+      }
+    </script>
+  </head>
+  <body>
+    <select onchange="setMode(this.value)" style="margin-bottom: 10px;">
+      <option value="single">Single Day Mode</option>
+      <option value="week">Work Week Mode</option>
+    </select>
+    <div id="calendar_basic" style="width: 1000px; height: 350px;"></div>
+  </body>
+</html>
